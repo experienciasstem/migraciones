@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Actividad interactiva: Lo que sabemos y lo que no</title>
+<style>
+  :root{
+    --acento:#035C80; --acento-osc:#024a67; --amarillo:#FFCD02; --navy:#1D3343;
+    --turquesa:#8DE2D6; --turq-claro:#E6F7F4; --fondo:#F4F7F8; --linea:#D9E2E6;
+    --suave:#5A6B76; --ok:#16875F; --ok-claro:#E3F4EC; --error:#C8452C; --error-claro:#FBE1DB;
+    --sepia:#66727B; --sepia-claro:#EEF1F3; --oro:#C99A00; --oro-claro:#FFF6D6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  [hidden]{display:none !important}
+  html,body{background:transparent}
+  body{font-family:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--navy)}
+
+  .app{position:relative;height:480px;overflow:hidden;background:var(--fondo);border-radius:14px;
+       padding:20px 16px 12px;display:flex;flex-direction:column;gap:10px}
+  .app::before{content:"";position:absolute;left:0;top:0;width:100%;height:6px;
+    background:linear-gradient(90deg,var(--sepia) 0 33.3%,var(--acento) 33.3% 66.6%,var(--amarillo) 66.6%)}
+  .top{position:relative;padding-right:40px}
+  .sonido{position:absolute;top:-2px;right:0;width:32px;height:32px;border-radius:50%;border:1.5px solid var(--linea);background:#fff;font-size:15px;cursor:pointer;line-height:1}
+  .sonido:hover{border-color:var(--acento)}
+  .sonido[aria-pressed="false"]{opacity:.55}
+  .top h1{font-size:19px;font-weight:800;letter-spacing:-.01em;line-height:1.15}
+  .top h1 span{color:var(--acento)}
+  .top p{font-size:14px;color:var(--suave);margin-top:3px;line-height:1.35}
+
+  /* Progreso */
+  .progreso{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--suave)}
+  .puntos{display:flex;gap:6px}
+  .punto{width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid var(--linea)}
+  .punto.actual{border-color:var(--acento);background:#E3EFF5}
+  .punto.bien{border-color:var(--ok);background:var(--ok)}
+  .punto.mal{border-color:var(--error);background:var(--error)}
+
+  /* Situación */
+  .situacion{flex:0 0 auto;background:#fff;border:1.5px solid var(--linea);border-left:6px solid var(--acento);border-radius:12px;
+             padding:14px 16px;font-size:16.5px;line-height:1.45;min-height:84px;display:flex;align-items:center}
+
+  /* Opciones */
+  .opciones{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .op{font:inherit;font-weight:800;font-size:14.5px;line-height:1.2;border-radius:12px;border:2px solid;padding:12px 10px;cursor:pointer;
+      background:#fff;color:var(--navy);transition:transform .12s,box-shadow .12s,background .15s}
+  .op:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 4px 10px rgba(29,51,67,.12)}
+  .op:focus-visible{outline:3px solid var(--turquesa);outline-offset:2px}
+  .op.interna{border-color:var(--acento)} .op.interna:hover:not(:disabled){background:#E3EFF5}
+  .op.internacional{border-color:var(--oro)} .op.internacional:hover:not(:disabled){background:var(--oro-claro)}
+  .op.si{border-color:var(--acento)} .op.si:hover:not(:disabled){background:#E3EFF5}
+  .op.no{border-color:var(--sepia)} .op.no:hover:not(:disabled){background:var(--sepia-claro)}
+  .op:disabled{cursor:default}
+  .op.elegida-bien{background:var(--ok-claro);border-color:var(--ok);color:var(--ok)}
+  .op.elegida-mal{background:var(--error-claro);border-color:var(--error);color:var(--error)}
+  .op.atenuada{opacity:.45}
+
+  /* Devolución */
+  .devolucion{flex:0 0 auto;border-radius:10px;padding:10px 13px;font-size:14px;line-height:1.42;border-left:4px solid}
+  .devolucion b{display:block;font-size:14.5px;margin-bottom:1px}
+  .devolucion.bien{background:var(--ok-claro);border-color:var(--ok)} .devolucion.bien b{color:var(--ok)}
+  .devolucion.mal{background:var(--error-claro);border-color:var(--error)} .devolucion.mal b{color:var(--error)}
+  .devolucion.pista{background:var(--oro-claro);border-color:var(--oro)} .devolucion.pista b{color:#8a6a00}
+
+  .espacio{flex:1}
+  .pie{flex:0 0 auto;display:flex;align-items:center;gap:10px;min-height:38px}
+  .estado{flex:1;font-size:13.5px;color:var(--suave);line-height:1.3}
+  .estado b{color:var(--navy)}
+  .btn{font:inherit;font-weight:700;font-size:14px;border:none;border-radius:999px;padding:9px 18px;cursor:pointer;
+       background:var(--acento);color:#fff;white-space:nowrap}
+  .btn:hover{background:var(--acento-osc)}
+  .btn.sec{background:#fff;color:var(--acento);border:1.5px solid var(--acento)}
+  .btn.sec:hover{background:#E3EFF5}
+  .btn.am{background:var(--amarillo);color:var(--navy)} .btn.am:hover{background:#f0c000}
+
+  /* Capa final */
+  .capa{position:absolute;inset:0;background:rgba(29,51,67,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+        display:flex;align-items:center;justify-content:center;padding:14px;z-index:10;animation:fundido .3s ease}
+  @keyframes fundido{from{opacity:0}to{opacity:1}}
+  .final{background:rgba(255,255,255,.97);border-radius:16px;border-top:6px solid var(--amarillo);width:min(720px,100%);
+         max-height:100%;overflow:auto;padding:16px 20px;display:flex;flex-direction:column;gap:9px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+  .final h2{font-size:18px;line-height:1.2}
+  .final .sub{font-size:13.5px;color:var(--suave);margin-top:2px}
+  .grupo{border-left:4px solid;border-radius:8px;padding:7px 11px;font-size:13px;line-height:1.38;color:#2E4655}
+  .grupo b{display:block;font-size:14px;color:var(--navy)}
+  .grupo ul{list-style:none;display:flex;flex-direction:column;gap:4px;margin-top:3px}
+  .grupo i{font-style:normal;font-weight:700;color:var(--navy)}
+  .grupo.interna{border-color:var(--acento);background:#E3EFF5}
+  .grupo.internacional{border-color:var(--oro);background:var(--oro-claro)}
+  .grupo.no{border-color:var(--sepia);background:var(--sepia-claro)}
+  .cierre{background:var(--turq-claro);border-left:4px solid var(--turquesa);border-radius:9px;padding:9px 12px;font-size:13.5px;line-height:1.42}
+  .cierre b{color:var(--acento)}
+  .final .acciones{display:flex;justify-content:center;gap:10px}
+
+  @media (max-width:560px){
+    .app{padding:16px 10px 10px;gap:8px}
+    .top h1{font-size:16px} .top p{font-size:12px}
+    .situacion{font-size:14px;padding:10px 12px;min-height:70px}
+    .opciones{gap:6px} .op{font-size:12px;padding:9px 6px}
+    .devolucion{font-size:12.5px;padding:8px 10px}
+    .estado{font-size:12px} .btn{padding:8px 13px;font-size:13px}
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <button class="sonido" id="btnSonido" aria-pressed="true" title="Sonido activado" aria-label="Sonido activado">🔊</button>
+    <h1>¿Lo <span>sabemos</span> o no?</h1>
+    <p>Leé cada afirmación sobre Joseph Atanasio y decidí si la investigación la confirma o no.</p>
+  </header>
+
+  <div class="progreso"><span id="txtProg"></span><div class="puntos" id="puntos" aria-hidden="true"></div></div>
+
+  <div class="situacion" id="situacion" aria-live="polite"></div>
+
+  <div class="opciones" role="group" aria-label="Opciones de respuesta">
+    <button class="op interna" data-r="si">Se sabe: está documentado</button>
+    <button class="op no" data-r="no">No se sabe: las fuentes no lo confirman</button>
+  </div>
+
+  <div class="devolucion" id="devolucion" role="status" hidden></div>
+  <div class="espacio"></div>
+
+  <div class="pie">
+    <div class="estado" id="estado"></div>
+    <button class="btn" id="btnSiguiente" hidden>Siguiente</button>
+  </div>
+
+  <div class="capa" id="capa" hidden>
+    <div class="final" role="dialog" aria-modal="true" aria-labelledby="finTit">
+      <div><h2 id="finTit">Lo que sabemos y lo que no</h2><div class="sub" id="finSub"></div></div>
+      <div class="grupo interna"><b>Se sabe: está documentado</b><ul id="g-si"></ul></div>
+      <div class="grupo no"><b>No se sabe: las fuentes no lo confirman</b><ul id="g-no"></ul></div>
+      <div class="cierre"><b>Para conversar entre todos.</b> Algunas afirmaciones parecen probables, pero la documentación no las confirma. ¿Por qué es importante no completar una historia con suposiciones? ¿Qué fuentes harían falta para saber más sobre la vida de Joseph Atanasio?</div>
+      <div class="acciones">
+        <button class="btn sec" id="btnCerrar">Volver</button>
+        <button class="btn" id="btnReiniciar">Empezar de nuevo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Afirmaciones, respuesta correcta (si | no) y devolución
+const SITUACIONES = [
+  { t:"En 1772 fue vendido a Antonio Vélez por 225 pesos.", r:"si",
+    d:"Está documentado en el registro de venta que estudió la investigación." },
+  { t:"Nació en África y llegó a Buenos Aires en un barco.", r:"no",
+    d:"La investigación no permite saber dónde nació ni cómo llegó a Buenos Aires." },
+  { t:"Su padre ofreció pagar para conseguir su libertad.", r:"si",
+    d:"Es uno de los hechos que se conservan en la documentación del reclamo." },
+  { t:"Trabajaba como zapatero en la ciudad.", r:"no",
+    d:"Muchas personas esclavizadas tenían oficios, pero no sabemos qué trabajos realizaba Joseph Atanasio." },
+  { t:"No sabía escribir y otras personas lo representaron en el proceso judicial.", r:"si",
+    d:"La documentación muestra que contó con la representación de otras personas." },
+  { t:"Ganó el juicio y quedó libre.", r:"no",
+    d:"La documentación conservada no permite conocer con certeza el resultado del proceso." }
+];
+const NOMBRE = { si:"Se sabe: está documentado", no:"No se sabe: las fuentes no lo confirman" };
+const PISTA = "Pensá en lo que escuchaste: ¿el audio lo cuenta como un hecho documentado, o es algo que podríamos suponer pero que la investigación no confirma?";
+const $ = id => document.getElementById(id);
+
+/* Sonidos generados (sin archivos) */
+let audio = null, conSonido = true;
+function ctx(){ if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} } if (audio && audio.state === "suspended") audio.resume(); return audio; }
+function nota(f, t0, dur, tipo="sine", vol=.18){
+  const a = ctx(); if (!a) return;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = tipo; o.frequency.setValueAtTime(f, a.currentTime + t0);
+  g.gain.setValueAtTime(0.0001, a.currentTime + t0);
+  g.gain.exponentialRampToValueAtTime(vol, a.currentTime + t0 + .015);
+  g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + t0 + dur);
+  o.connect(g).connect(a.destination); o.start(a.currentTime + t0); o.stop(a.currentTime + t0 + dur + .02);
+}
+const SONIDO = {
+  bien(){ if (conSonido){ nota(660,0,.12); nota(880,.1,.18); } },
+  mal(){ if (conSonido) nota(200,0,.22,"triangle",.2); }
+};
+$("btnSonido").onclick = () => {
+  conSonido = !conSonido;
+  const b = $("btnSonido"); b.textContent = conSonido ? "🔊" : "🔇";
+  b.setAttribute("aria-pressed", conSonido); b.title = b.ariaLabel = conSonido ? "Sonido activado" : "Sonido desactivado";
+  if (conSonido) SONIDO.bien();
+};
+
+const ops = [...document.querySelectorAll(".op")];
+let i = 0, intentos = 0, resultados = [];
+
+function iniciar(){
+  i = 0; resultados = [];
+  $("puntos").innerHTML = SITUACIONES.map(() => '<span class="punto"></span>').join("");
+  $("capa").hidden = true;
+  mostrar();
+}
+
+function mostrar(){
+  intentos = 0;
+  const s = SITUACIONES[i];
+  $("txtProg").textContent = `Afirmación ${i+1} de ${SITUACIONES.length}`;
+  [...$("puntos").children].forEach((p,k) => p.classList.toggle("actual", k === i));
+  $("situacion").textContent = s.t;
+  ops.forEach(o => { o.disabled = false; o.className = "op " + o.dataset.r; });
+  $("devolucion").hidden = true;
+  $("btnSiguiente").hidden = true;
+  $("estado").textContent = "Elegí una opción.";
+}
+
+ops.forEach(o => o.addEventListener("click", () => responder(o)));
+
+function responder(o){
+  const s = SITUACIONES[i], ok = o.dataset.r === s.r;
+  intentos++;
+  const dev = $("devolucion");
+  if (ok){
+    SONIDO.bien();
+    marcarFin(o, true);
+    dev.className = "devolucion bien";
+    dev.innerHTML = `<b>¡Correcto! ${NOMBRE[s.r]}.</b>${s.d}`;
+    resultados[i] = intentos === 1;
+  } else if (false){
+    SONIDO.mal();
+    o.disabled = true; o.classList.add("elegida-mal");
+    dev.className = "devolucion pista";
+    dev.innerHTML = `<b>Todavía no. Probá otra vez.</b>${PISTA}`;
+    $("estado").textContent = "Tenés un intento más.";
+  } else {
+    SONIDO.mal();
+    marcarFin(o, false);
+    dev.className = "devolucion mal";
+    dev.innerHTML = `<b>La respuesta es: ${NOMBRE[s.r]}.</b>${s.d}`;
+    resultados[i] = false;
+  }
+  dev.hidden = false;
+}
+
+function marcarFin(o, ok){
+  const s = SITUACIONES[i];
+  ops.forEach(b => {
+    b.disabled = true;
+    if (b.dataset.r === s.r) b.classList.add("elegida-bien");
+    else if (b !== o && !b.classList.contains("elegida-mal")) b.classList.add("atenuada");
+  });
+  if (!ok) o.classList.add("elegida-mal");
+  // el punto se pinta verde si la respuesta final es correcta, rojo si no
+  $("puntos").children[i].className = "punto " + (ok ? "bien" : "mal");
+  const ultima = i === SITUACIONES.length - 1;
+  $("btnSiguiente").textContent = ultima ? "Ver resumen" : "Siguiente";
+  $("btnSiguiente").className = ultima ? "btn am" : "btn";
+  $("btnSiguiente").hidden = false;
+  $("estado").textContent = "";
+  $("btnSiguiente").focus({ preventScroll: true });
+}
+
+$("btnSiguiente").onclick = () => {
+  if (i < SITUACIONES.length - 1){ i++; mostrar(); }
+  else resumen();
+};
+
+function resumen(){
+  const n = resultados.filter(Boolean).length;
+  $("finSub").textContent = `Acertaste ${n} de ${SITUACIONES.length}.`;
+  ["si","no"].forEach(c => {
+    $("g-"+c).innerHTML = SITUACIONES.filter(x => x.r === c).map(x => `<li><i>${x.t}</i> ${x.d}</li>`).join("");
+  });
+  $("capa").hidden = false;
+  document.querySelector(".final").scrollTop = 0;
+  $("btnCerrar").focus({ preventScroll: true });
+}
+$("btnCerrar").onclick = () => { $("capa").hidden = true; };
+$("btnReiniciar").onclick = iniciar;
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("capa").hidden = true; });
+
+iniciar();
+</script>
+</body>
+</html>
